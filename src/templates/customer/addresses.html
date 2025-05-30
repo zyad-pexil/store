@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عناويني - متجر سوقي</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="navbar">
+                <div class="logo">
+                    <a href="{{ url_for('index') }}">سوقي</a>
+                </div>
+                <button class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="search-bar">
+                    <form action="{{ url_for('customer.search') }}" method="GET">
+                        <input type="text" name="q" placeholder="ابحث عن منتجات..." value="{{ request.args.get('q', '') }}">
+                        <button type="submit"><i class="fas fa-search"></i></button>
+                    </form>
+                </div>
+                <ul class="nav-links">
+                    <li><a href="{{ url_for('index') }}">الرئيسية</a></li>
+                    <li><a href="{{ url_for('customer.products') }}">المنتجات</a></li>
+                    <li><a href="{{ url_for('customer.categories') }}">الفئات</a></li>
+                    <li><a href="{{ url_for('customer.contact') }}">اتصل بنا</a></li>
+                </ul>
+                <div class="user-actions">
+                    <a href="{{ url_for('customer.cart') }}" class="cart-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                        {% if session.cart and session.cart|length > 0 %}
+                            <span class="cart-count">{{ session.cart|length }}</span>
+                        {% endif %}
+                    </a>
+                    {% if current_user.is_authenticated %}
+                        <div class="dropdown">
+                            <button class="dropdown-toggle">
+                                <i class="fas fa-user"></i>
+                                <span>{{ current_user.username }}</span>
+                            </button>
+                            <div class="dropdown-menu">
+                                <a href="{{ url_for('customer.account') }}">حسابي</a>
+                                <a href="{{ url_for('customer.orders') }}">طلباتي</a>
+                                <a href="{{ url_for('customer.wishlist') }}">المفضلة</a>
+                                <a href="{{ url_for('auth.logout') }}">تسجيل الخروج</a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="auth-buttons">
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-outline">تسجيل الدخول</a>
+                            <a href="{{ url_for('auth.register') }}" class="btn btn-primary">إنشاء حساب</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="breadcrumb">
+                <a href="{{ url_for('index') }}">الرئيسية</a>
+                <i class="fas fa-chevron-left"></i>
+                <a href="{{ url_for('customer.account') }}">حسابي</a>
+                <i class="fas fa-chevron-left"></i>
+                <span>عناويني</span>
+            </div>
+
+            <div class="account-container">
+                <div class="account-sidebar">
+                    <div class="user-info">
+                        <div class="user-avatar">
+                            {% if current_user.avatar %}
+                                <img src="{{ current_user.avatar }}" alt="{{ current_user.username }}">
+                            {% else %}
+                                <div class="avatar-placeholder">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="user-details">
+                            <h3>{{ current_user.full_name }}</h3>
+                            <p>{{ current_user.email }}</p>
+                        </div>
+                    </div>
+                    <ul class="account-menu">
+                        <li><a href="{{ url_for('customer.account') }}"><i class="fas fa-user-circle"></i> لوحة التحكم</a></li>
+                        <li><a href="{{ url_for('customer.profile') }}"><i class="fas fa-user-edit"></i> تعديل الملف الشخصي</a></li>
+                        <li><a href="{{ url_for('customer.orders') }}"><i class="fas fa-shopping-bag"></i> طلباتي</a></li>
+                        <li><a href="{{ url_for('customer.addresses') }}" class="active"><i class="fas fa-map-marker-alt"></i> عناويني</a></li>
+                        <li><a href="{{ url_for('customer.wishlist') }}"><i class="fas fa-heart"></i> المفضلة</a></li>
+                        <li><a href="{{ url_for('customer.reviews') }}"><i class="fas fa-star"></i> تقييماتي</a></li>
+                        <li><a href="{{ url_for('customer.notifications') }}"><i class="fas fa-bell"></i> الإشعارات</a></li>
+                        <li><a href="{{ url_for('auth.change_password') }}"><i class="fas fa-lock"></i> تغيير كلمة المرور</a></li>
+                        <li><a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
+                    </ul>
+                </div>
+                
+                <div class="account-content">
+                    <div class="page-header">
+                        <h1 class="page-title">عناويني</h1>
+                        <a href="{{ url_for('customer.add_address') }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> إضافة عنوان جديد
+                        </a>
+                    </div>
+                    
+                    {% if addresses %}
+                        <div class="addresses-grid">
+                            {% for address in addresses %}
+                                <div class="address-card">
+                                    <div class="address-header">
+                                        <h3>{{ address.title }}</h3>
+                                        {% if address.is_default %}
+                                            <span class="badge badge-primary">العنوان الافتراضي</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="address-content">
+                                        <p><strong>{{ address.full_name }}</strong></p>
+                                        <p>{{ address.address_line1 }}</p>
+                                        {% if address.address_line2 %}
+                                            <p>{{ address.address_line2 }}</p>
+                                        {% endif %}
+                                        <p>{{ address.city }}، {{ address.state }}</p>
+                                        <p>{{ address.postal_code }}</p>
+                                        <p>{{ address.country }}</p>
+                                        <p>هاتف: {{ address.phone }}</p>
+                                    </div>
+                                    <div class="address-actions">
+                                        <a href="{{ url_for('customer.edit_address', address_id=address.id) }}" class="btn btn-sm btn-outline">
+                                            <i class="fas fa-edit"></i> تعديل
+                                        </a>
+                                        {% if not address.is_default %}
+                                            <form action="{{ url_for('customer.set_default_address', address_id=address.id) }}" method="POST" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-outline">
+                                                    <i class="fas fa-check-circle"></i> تعيين كافتراضي
+                                                </button>
+                                            </form>
+                                            <form action="{{ url_for('customer.delete_address', address_id=address.id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا العنوان؟');">
+                                                <button type="submit" class="btn btn-sm btn-danger">
+                                                    <i class="fas fa-trash"></i> حذف
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                            
+                            <a href="{{ url_for('customer.add_address') }}" class="address-card new-address">
+                                <div class="address-content">
+                                    <div class="new-address-icon">
+                                        <i class="fas fa-plus-circle"></i>
+                                    </div>
+                                    <h3>إضافة عنوان جديد</h3>
+                                </div>
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <h2>لا توجد عناوين</h2>
+                            <p>لم تقم بإضافة أي عناوين بعد.</p>
+                            <a href="{{ url_for('customer.add_address') }}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> إضافة عنوان جديد
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-top">
+                <div class="footer-column">
+                    <h3>سوقي</h3>
+                    <p>متجرك الإلكتروني الموثوق للتسوق بكل سهولة وأمان.</p>
+                    <div class="social-links">
+                        <a href="#" class="social-link"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+                <div class="footer-column">
+                    <h3>روابط سريعة</h3>
+                    <ul class="footer-links">
+                        <li><a href="{{ url_for('index') }}">الرئيسية</a></li>
+                        <li><a href="{{ url_for('customer.products') }}">المنتجات</a></li>
+                        <li><a href="{{ url_for('customer.categories') }}">الفئات</a></li>
+                        <li><a href="{{ url_for('customer.offers') }}">العروض</a></li>
+                        <li><a href="{{ url_for('customer.contact') }}">اتصل بنا</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>خدمة العملاء</h3>
+                    <ul class="footer-links">
+                        <li><a href="{{ url_for('customer.account') }}">حسابي</a></li>
+                        <li><a href="{{ url_for('customer.orders') }}">تتبع الطلبات</a></li>
+                        <li><a href="{{ url_for('customer.shipping_policy') }}">سياسة الشحن</a></li>
+                        <li><a href="{{ url_for('customer.return_policy') }}">سياسة الإرجاع</a></li>
+                        <li><a href="{{ url_for('customer.faq') }}">الأسئلة الشائعة</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>اتصل بنا</h3>
+                    <ul class="contact-info">
+                        <li><i class="fas fa-map-marker-alt"></i> الرياض، المملكة العربية السعودية</li>
+                        <li><i class="fas fa-phone"></i> +966 12 345 6789</li>
+                        <li><i class="fas fa-envelope"></i> info@sooqi.com</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 متجر سوقي. جميع الحقوق محفوظة.</p>
+                <div class="payment-methods">
+                    <img src="{{ url_for('static', filename='img/payment-methods.png') }}" alt="طرق الدفع">
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

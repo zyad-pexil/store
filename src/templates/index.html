@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متجر سوقي الإلكتروني</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="navbar">
+                <div class="logo">
+                    <a href="{{ url_for('index') }}">سوقي</a>
+                </div>
+                <button class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <ul class="nav-links">
+                    <li><a href="{{ url_for('index') }}">الرئيسية</a></li>
+                    <li><a href="{{ url_for('customer.products') }}">المنتجات</a></li>
+                    {% if session.get('user_id') %}
+                        {% if session.get('role') == 'admin' %}
+                            <li><a href="{{ url_for('admin.dashboard') }}">لوحة التحكم</a></li>
+                        {% else %}
+                            <li><a href="{{ url_for('customer.dashboard') }}">حسابي</a></li>
+                            <li><a href="{{ url_for('customer.cart') }}">سلة التسوق</a></li>
+                            <li><a href="{{ url_for('customer.orders') }}">طلباتي</a></li>
+                        {% endif %}
+                        <li><a href="{{ url_for('auth.logout') }}">تسجيل الخروج</a></li>
+                    {% else %}
+                        <li><a href="{{ url_for('auth.login') }}">تسجيل الدخول</a></li>
+                        <li><a href="{{ url_for('auth.register') }}">حساب جديد</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <section class="hero">
+                <h1>مرحباً بك في متجر سوقي الإلكتروني</h1>
+                <p>تسوق أفضل المنتجات بأسعار تنافسية وتوصيل سريع</p>
+                <a href="{{ url_for('customer.products') }}" class="btn btn-secondary">تصفح المنتجات</a>
+            </section>
+
+            <section class="featured-products">
+                <h2 class="section-title">منتجات مميزة</h2>
+                <div class="product-grid">
+                    <!-- سيتم استبدال هذا بمنتجات حقيقية من قاعدة البيانات -->
+                    <div class="product-card">
+                        <div class="product-image">
+                            <img src="{{ url_for('static', filename='img/placeholder.jpg') }}" alt="منتج مميز">
+                        </div>
+                        <div class="product-info">
+                            <h3 class="product-title">اسم المنتج</h3>
+                            <div class="product-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star-half-alt"></i>
+                            </div>
+                            <div class="product-price">199 ريال</div>
+                            <a href="#" class="btn btn-primary">عرض التفاصيل</a>
+                        </div>
+                    </div>
+                    <!-- تكرار لأغراض العرض -->
+                    <div class="product-card">
+                        <div class="product-image">
+                            <img src="{{ url_for('static', filename='img/placeholder.jpg') }}" alt="منتج مميز">
+                        </div>
+                        <div class="product-info">
+                            <h3 class="product-title">اسم المنتج</h3>
+                            <div class="product-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </div>
+                            <div class="product-price">149 ريال</div>
+                            <a href="#" class="btn btn-primary">عرض التفاصيل</a>
+                        </div>
+                    </div>
+                    <div class="product-card">
+                        <div class="product-image">
+                            <img src="{{ url_for('static', filename='img/placeholder.jpg') }}" alt="منتج مميز">
+                        </div>
+                        <div class="product-info">
+                            <h3 class="product-title">اسم المنتج</h3>
+                            <div class="product-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star-half-alt"></i>
+                                <i class="far fa-star"></i>
+                            </div>
+                            <div class="product-price">299 ريال</div>
+                            <a href="#" class="btn btn-primary">عرض التفاصيل</a>
+                        </div>
+                    </div>
+                    <div class="product-card">
+                        <div class="product-image">
+                            <img src="{{ url_for('static', filename='img/placeholder.jpg') }}" alt="منتج مميز">
+                        </div>
+                        <div class="product-info">
+                            <h3 class="product-title">اسم المنتج</h3>
+                            <div class="product-rating">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <div class="product-price">399 ريال</div>
+                            <a href="#" class="btn btn-primary">عرض التفاصيل</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="categories">
+                <h2 class="section-title">تسوق حسب الفئة</h2>
+                <div class="row">
+                    <div class="col">
+                        <div class="card">
+                            <div class="card-body">
+                                <h3>الإلكترونيات</h3>
+                                <p>أحدث الأجهزة الإلكترونية والتقنية</p>
+                                <a href="#" class="btn btn-outline">تصفح الفئة</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card">
+                            <div class="card-body">
+                                <h3>الملابس</h3>
+                                <p>أحدث صيحات الموضة والأزياء</p>
+                                <a href="#" class="btn btn-outline">تصفح الفئة</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card">
+                            <div class="card-body">
+                                <h3>المنزل والمطبخ</h3>
+                                <p>كل ما تحتاجه لمنزلك</p>
+                                <a href="#" class="btn btn-outline">تصفح الفئة</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-links">
+                <div class="footer-section">
+                    <h3>سوقي</h3>
+                    <p>متجرك الإلكتروني الشامل للتسوق بكل سهولة وأمان.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>روابط سريعة</h3>
+                    <ul>
+                        <li><a href="{{ url_for('index') }}">الرئيسية</a></li>
+                        <li><a href="{{ url_for('customer.products') }}">المنتجات</a></li>
+                        <li><a href="#">عن المتجر</a></li>
+                        <li><a href="#">اتصل بنا</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>خدمة العملاء</h3>
+                    <ul>
+                        <li><a href="#">الأسئلة الشائعة</a></li>
+                        <li><a href="#">سياسة الإرجاع</a></li>
+                        <li><a href="#">شروط الاستخدام</a></li>
+                        <li><a href="#">سياسة الخصوصية</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>تواصل معنا</h3>
+                    <ul>
+                        <li><i class="fas fa-envelope"></i> info@sooqi.com</li>
+                        <li><i class="fas fa-phone"></i> +966 12 345 6789</li>
+                        <li><i class="fas fa-map-marker-alt"></i> الرياض، المملكة العربية السعودية</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 متجر سوقي. جميع الحقوق محفوظة.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
