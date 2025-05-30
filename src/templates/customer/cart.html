@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سلة التسوق - متجر سوقي</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="navbar">
+                <div class="logo">
+                    <a href="{{ url_for('index') }}">سوقي</a>
+                </div>
+                <button class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="search-bar">
+                    <form action="{{ url_for('customer.search') }}" method="GET">
+                        <input type="text" name="q" placeholder="ابحث عن منتجات..." value="{{ request.args.get('q', '') }}">
+                        <button type="submit"><i class="fas fa-search"></i></button>
+                    </form>
+                </div>
+                <ul class="nav-links">
+                    <li><a href="{{ url_for('index') }}">الرئيسية</a></li>
+                    <li><a href="{{ url_for('customer.products') }}">المنتجات</a></li>
+                    <li><a href="{{ url_for('customer.categories') }}">الفئات</a></li>
+                    <li><a href="{{ url_for('customer.contact') }}">اتصل بنا</a></li>
+                </ul>
+                <div class="user-actions">
+                    <a href="{{ url_for('customer.cart') }}" class="cart-icon active">
+                        <i class="fas fa-shopping-cart"></i>
+                        {% if cart_items and cart_items|length > 0 %}
+                            <span class="cart-count">{{ cart_items|length }}</span>
+                        {% endif %}
+                    </a>
+                    {% if current_user.is_authenticated %}
+                        <div class="dropdown">
+                            <button class="dropdown-toggle">
+                                <i class="fas fa-user"></i>
+                                <span>{{ current_user.username }}</span>
+                            </button>
+                            <div class="dropdown-menu">
+                                <a href="{{ url_for('customer.account') }}">حسابي</a>
+                                <a href="{{ url_for('customer.orders') }}">طلباتي</a>
+                                <a href="{{ url_for('customer.wishlist') }}">المفضلة</a>
+                                <a href="{{ url_for('auth.logout') }}">تسجيل الخروج</a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="auth-buttons">
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-outline">تسجيل الدخول</a>
+                            <a href="{{ url_for('auth.register') }}" class="btn btn-primary">إنشاء حساب</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="breadcrumb">
+                <a href="{{ url_for('index') }}">الرئيسية</a>
+                <i class="fas fa-chevron-left"></i>
+                <span>سلة التسوق</span>
+            </div>
+
+            <h1 class="page-title">سلة التسوق</h1>
+
+            {% if cart_items and cart_items|length > 0 %}
+                <div class="cart-container">
+                    <div class="cart-items">
+                        <div class="cart-header">
+                            <div class="cart-header-product">المنتج</div>
+                            <div class="cart-header-price">السعر</div>
+                            <div class="cart-header-quantity">الكمية</div>
+                            <div class="cart-header-total">المجموع</div>
+                            <div class="cart-header-actions">إجراءات</div>
+                        </div>
+                        
+                        {% for item in cart_items %}
+                            <div class="cart-item" data-item-id="{{ item.id }}">
+                                <div class="cart-item-product">
+                                    <div class="cart-item-image">
+                                        <a href="{{ url_for('customer.product_details', product_id=item.product.id) }}">
+                                            {% if item.product.images and item.product.images|length > 0 %}
+                                                {% for image in item.product.images %}
+                                                    {% if image.is_primary %}
+                                                        <img src="{{ image.image_path }}" alt="{{ item.product.name }}">
+                                                        {% break %}
+                                                    {% endif %}
+                                                {% else %}
+                                                    <img src="{{ item.product.images[0].image_path }}" alt="{{ item.product.name }}">
+                                                {% endfor %}
+                                            {% else %}
+                                                <img src="{{ url_for('static', filename='img/placeholder.jpg') }}" alt="{{ item.product.name }}">
+                                            {% endif %}
+                                        </a>
+                                    </div>
+                                    <div class="cart-item-details">
+                                        <h3 class="cart-item-title">
+                                            <a href="{{ url_for('customer.product_details', product_id=item.product.id) }}">{{ item.product.name }}</a>
+                                        </h3>
+                                        <div class="cart-item-meta">
+                                            <span class="cart-item-sku">رمز المنتج: {{ item.product.sku }}</span>
+                                            {% if item.product.category %}
+                                                <span class="cart-item-category">الفئة: {{ item.product.category.name }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="cart-item-price">
+                                    {% if item.product.discount_price and item.product.discount_price < item.product.price %}
+                                        <span class="price-current">{{ item.product.discount_price }} ريال</span>
+                                        <span class="price-old">{{ item.product.price }} ريال</span>
+                                    {% else %}
+                                        <span class="price-current">{{ item.product.price }} ريال</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="cart-item-quantity">
+                                    <div class="quantity-controls">
+                                        <button type="button" class="quantity-decrease" onclick="updateCartItemQuantity('{{ item.id }}', -1)">-</button>
+                                        <input type="number" value="{{ item.quantity }}" min="1" max="{{ item.product.stock_quantity }}" onchange="updateCartItemQuantity('{{ item.id }}', 0, this.value)">
+                                        <button type="button" class="quantity-increase" onclick="updateCartItemQuantity('{{ item.id }}', 1)">+</button>
+                                    </div>
+                                    <div class="stock-info">
+                                        {% if item.product.stock_quantity <= 5 %}
+                                            <span class="low-stock">متبقي {{ item.product.stock_quantity }} فقط</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div class="cart-item-total">
+                                    {% if item.product.discount_price and item.product.discount_price < item.product.price %}
+                                        {{ (item.product.discount_price * item.quantity)|round(2) }} ريال
+                                    {% else %}
+                                        {{ (item.product.price * item.quantity)|round(2) }} ريال
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="cart-item-actions">
+                                    <button type="button" class="btn btn-sm btn-outline" onclick="addToWishlist('{{ item.product.id }}')">
+                                        <i class="far fa-heart"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-danger" onclick="removeCartItem('{{ item.id }}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="cart-actions">
+                        <div class="cart-coupon">
+                            <form action="{{ url_for('customer.apply_coupon') }}" method="POST" class="coupon-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="text" name="coupon_code" placeholder="كود الخصم" class="form-control">
+                                <button type="submit" class="btn btn-primary">تطبيق</button>
+                            </form>
+                        </div>
+                        <div class="cart-update">
+                            <form action="{{ url_for('customer.clear_cart') }}" method="POST" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline">
+                                    <i class="fas fa-trash"></i> إفراغ السلة
+                                </button>
+                            </form>
+                            <button type="button" class="btn btn-secondary" onclick="updateAllCartItems()">
+                                <i class="fas fa-sync"></i> تحديث السلة
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="cart-summary">
+                        <h2>ملخص الطلب</h2>
+                        <div class="summary-row">
+                            <span class="summary-label">المجموع الفرعي:</span>
+                            <span class="summary-value">{{ cart_subtotal }} ريال</span>
+                        </div>
+                        
+                        {% if discount_amount > 0 %}
+                            <div class="summary-row discount">
+                                <span class="summary-label">الخصم:</span>
+                                <span class="summary-value">-{{ discount_amount }} ريال</span>
+                            </div>
+                        {% endif %}
+                        
+                        <div class="summary-row">
+                            <span class="summary-label">رسوم الشحن:</span>
+                            <span class="summary-value">{{ shipping_fee }} ريال</span>
+                        </div>
+                        
+                        <div class="summary-row">
+                            <span class="summary-label">ضريبة القيمة المضافة ({{ tax_rate }}%):</span>
+                            <span class="summary-value">{{ tax_amount }} ريال</span>
+                        </div>
+                        
+                        <div class="summary-row total">
+                            <span class="summary-label">المجموع الكلي:</span>
+                            <span class="summary-value">{{ cart_total }} ريال</span>
+                        </div>
+                        
+                        <div class="checkout-button">
+                            <a href="{{ url_for('customer.checkout') }}" class="btn btn-primary btn-lg btn-block">
+                                <i class="fas fa-shopping-bag"></i> إتمام الشراء
+                            </a>
+                        </div>
+                        
+                        <div class="secure-checkout">
+                            <p><i class="fas fa-lock"></i> الدفع آمن ومشفر</p>
+                            <div class="payment-icons">
+                                <img src="{{ url_for('static', filename='img/payment-methods.png') }}" alt="طرق الدفع">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="continue-shopping">
+                    <a href="{{ url_for('customer.products') }}" class="btn btn-outline">
+                        <i class="fas fa-arrow-right"></i> متابعة التسوق
+                    </a>
+                </div>
+            {% else %}
+                <div class="empty-cart">
+                    <div class="empty-cart-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <h2>سلة التسوق فارغة</h2>
+                    <p>لم تقم بإضافة أي منتجات إلى سلة التسوق بعد.</p>
+                    <a href="{{ url_for('customer.products') }}" class="btn btn-primary">
+                        <i class="fas fa-shopping-bag"></i> تصفح المنتجات
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-top">
+                <div class="footer-column">
+                    <h3>متجر سوقي</h3>
+                    <p>متجرك الإلكتروني الأول للتسوق بكل سهولة وأمان.</p>
+                    <div class="social-links">
+                        <a href="#" target="_blank"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" target="_blank"><i class="fab fa-twitter"></i></a>
+                        <a href="#" target="_blank"><i class="fab fa-instagram"></i></a>
+                        <a href="#" target="_blank"><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+                <div class="footer-column">
+                    <h3>روابط سريعة</h3>
+                    <ul>
+                        <li><a href="{{ url_for('index') }}">الرئيسية</a></li>
+                        <li><a href="{{ url_for('customer.products') }}">المنتجات</a></li>
+                        <li><a href="{{ url_for('customer.categories') }}">الفئات</a></li>
+                        <li><a href="{{ url_for('customer.contact') }}">اتصل بنا</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>حسابي</h3>
+                    <ul>
+                        <li><a href="{{ url_for('customer.account') }}">حسابي</a></li>
+                        <li><a href="{{ url_for('customer.orders') }}">طلباتي</a></li>
+                        <li><a href="{{ url_for('customer.wishlist') }}">المفضلة</a></li>
+                        <li><a href="{{ url_for('customer.cart') }}">سلة التسوق</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>اتصل بنا</h3>
+                    <ul class="contact-info">
+                        <li><i class="fas fa-map-marker-alt"></i> الرياض، المملكة العربية السعودية</li>
+                        <li><i class="fas fa-phone"></i> +966 12 345 6789</li>
+                        <li><i class="fas fa-envelope"></i> info@sooqi.com</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 متجر سوقي. جميع الحقوق محفوظة.</p>
+                <div class="payment-methods">
+                    <img src="{{ url_for('static', filename='img/payment-methods.png') }}" alt="طرق الدفع">
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        // تحديث كمية منتج في السلة
+        function updateCartItemQuantity(itemId, change, newQuantity = null) {
+            let formData = new FormData();
+            formData.append('csrf_token', '{{ csrf_token() }}');
+            
+            if (newQuantity !== null) {
+                formData.append('quantity', newQuantity);
+            } else {
+                const currentInput = document.querySelector(`.cart-item[data-item-id="${itemId}"] input[type="number"]`);
+                let currentQuantity = parseInt(currentInput.value);
+                let updatedQuantity = currentQuantity + change;
+                
+                if (updatedQuantity < 1) updatedQuantity = 1;
+                if (updatedQuantity > parseInt(currentInput.max)) updatedQuantity = parseInt(currentInput.max);
+                
+                formData.append('quantity', updatedQuantity);
+                currentInput.value = updatedQuantity;
+            }
+            
+            fetch(`/cart/update/${itemId}`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // تحديث المجموع الفرعي للمنتج
+                    const itemTotalElement = document.querySelector(`.cart-item[data-item-id="${itemId}"] .cart-item-total`);
+                    itemTotalElement.textContent = `${data.item_total} ريال`;
+                    
+                    // تحديث ملخص السلة
+                    updateCartSummary(data);
+                } else {
+                    alert(data.message || 'حدث خطأ أثناء تحديث السلة');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ أثناء تحديث السلة');
+            });
+        }
+        
+        // حذف منتج من السلة
+        function removeCartItem(itemId) {
+            if (confirm('هل أنت متأكد من حذف هذا المنتج من السلة؟')) {
+                let formData = new FormData();
+                formData.append('csrf_token', '{{ csrf_token() }}');
+                
+                fetch(`/cart/remove/${itemId}`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // إزالة المنتج من العرض
+                        const itemElement = document.querySelector(`.cart-item[data-item-id="${itemId}"]`);
+                        itemElement.remove();
+                        
+                        // تحديث ملخص السلة
+                        updateCartSummary(data);
+                        
+                        // تحديث عدد العناصر في أيقونة السلة
+                        const cartCountElement = document.querySelector('.cart-count');
+                        if (cartCountElement) {
+                            if (data.cart_count > 0) {
+                                cartCountElement.textContent = data.cart_count;
+                            } else {
+                                cartCountElement.remove();
+                                // إعادة تحميل الصفحة لعرض رسالة السلة فارغة
+                                window.location.reload();
+                            }
+                        }
+                    } else {
+                        alert(data.message || 'حدث خطأ أثناء حذف المنتج من السلة');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('حدث خطأ أثناء حذف المنتج من السلة');
+                });
+            }
+        }
+        
+        // تحديث ملخص السلة
+        function updateCartSummary(data) {
+            document.querySelector('.summary-row:nth-child(1) .summary-value').textContent = `${data.cart_subtotal} ريال`;
+            
+            // تحديث الخصم إذا وجد
+            const discountRow = document.querySelector('.summary-row.discount');
+            if (data.discount_amount > 0) {
+                if (discountRow) {
+                    discountRow.querySelector('.summary-value').textContent = `-${data.discount_amount} ريال`;
+                } else {
+                    const newDiscountRow = document.createElement('div');
+                    newDiscountRow.className = 'summary-row discount';
+                    newDiscountRow.innerHTML = `
+                        <span class="summary-label">الخصم:</span>
+                        <span class="summary-value">-${data.discount_amount} ريال</span>
+                    `;
+                    document.querySelector('.summary-row:nth-child(1)').insertAdjacentElement('afterend', newDiscountRow);
+                }
+            } else if (discountRow) {
+                discountRow.remove();
+            }
+            
+            // تحديث رسوم الشحن والضريبة والمجموع الكلي
+            const shippingIndex = discountRow ? 3 : 2;
+            const taxIndex = discountRow ? 4 : 3;
+            const totalIndex = discountRow ? 5 : 4;
+            
+            document.querySelector(`.summary-row:nth-child(${shippingIndex}) .summary-value`).textContent = `${data.shipping_fee} ريال`;
+            document.querySelector(`.summary-row:nth-child(${taxIndex}) .summary-value`).textContent = `${data.tax_amount} ريال`;
+            document.querySelector(`.summary-row:nth-child(${totalIndex}) .summary-value`).textContent = `${data.cart_total} ريال`;
+        }
+        
+        // إضافة منتج إلى المفضلة
+        function addToWishlist(productId) {
+            let formData = new FormData();
+            formData.append('csrf_token', '{{ csrf_token() }}');
+            
+            fetch(`/wishlist/add/${productId}`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('تمت إضافة المنتج إلى المفضلة بنجاح');
+                } else if (data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    alert(data.message || 'حدث خطأ أثناء إضافة المنتج إلى المفضلة');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ أثناء إضافة المنتج إلى المفضلة');
+            });
+        }
+        
+        // تحديث جميع المنتجات في السلة
+        function updateAllCartItems() {
+            const cartItems = document.querySelectorAll('.cart-item');
+            let updates = [];
+            
+            cartItems.forEach(item => {
+                const itemId = item.dataset.itemId;
+                const quantity = parseInt(item.querySelector('input[type="number"]').value);
+                updates.push({ id: itemId, quantity: quantity });
+            });
+            
+            let formData = new FormData();
+            formData.append('csrf_token', '{{ csrf_token() }}');
+            formData.append('updates', JSON.stringify(updates));
+            
+            fetch('/cart/update-all', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // تحديث الصفحة لعرض التغييرات
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'حدث خطأ أثناء تحديث السلة');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ أثناء تحديث السلة');
+            });
+        }
+    </script>
+</body>
+</html>

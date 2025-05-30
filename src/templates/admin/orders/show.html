@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عرض تفاصيل الطلب - متجر سوقي</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="navbar">
+                <div class="logo">
+                    <a href="{{ url_for('admin.dashboard') }}">سوقي - لوحة التحكم</a>
+                </div>
+                <button class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <ul class="nav-links">
+                    <li><a href="{{ url_for('admin.dashboard') }}">الرئيسية</a></li>
+                    <li><a href="{{ url_for('admin.products') }}">المنتجات</a></li>
+                    <li><a href="{{ url_for('admin.categories') }}">الفئات</a></li>
+                    <li><a href="{{ url_for('admin.orders') }}">الطلبات</a></li>
+                    <li><a href="{{ url_for('admin.users') }}">المستخدمين</a></li>
+                    <li><a href="{{ url_for('admin.reviews') }}">التقييمات</a></li>
+                    <li><a href="{{ url_for('index') }}">زيارة المتجر</a></li>
+                    <li><a href="{{ url_for('auth.logout') }}">تسجيل الخروج</a></li>
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="admin-header">
+                <h1 class="page-title">تفاصيل الطلب #{{ order.order_number }}</h1>
+                <div class="admin-actions">
+                    <a href="{{ url_for('admin.edit_order', order_id=order.id) }}" class="btn btn-primary">
+                        <i class="fas fa-edit"></i> تعديل الحالة
+                    </a>
+                    <a href="{{ url_for('admin.print_invoice', order_id=order.id) }}" class="btn btn-secondary" target="_blank">
+                        <i class="fas fa-print"></i> طباعة الفاتورة
+                    </a>
+                    <a href="{{ url_for('admin.orders') }}" class="btn btn-outline">
+                        <i class="fas fa-arrow-right"></i> العودة إلى قائمة الطلبات
+                    </a>
+                </div>
+            </div>
+
+            <div class="order-details">
+                <div class="row">
+                    <div class="col">
+                        <div class="card">
+                            <div class="card-header">
+                                <h2>معلومات الطلب</h2>
+                            </div>
+                            <div class="card-body">
+                                <table class="details-table">
+                                    <tr>
+                                        <th>رقم الطلب:</th>
+                                        <td>#{{ order.order_number }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>تاريخ الطلب:</th>
+                                        <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>حالة الطلب:</th>
+                                        <td>
+                                            {% if order.status == 'pending' %}
+                                                <span class="badge badge-warning">قيد الانتظار</span>
+                                            {% elif order.status == 'processing' %}
+                                                <span class="badge badge-info">قيد المعالجة</span>
+                                            {% elif order.status == 'shipped' %}
+                                                <span class="badge badge-primary">تم الشحن</span>
+                                            {% elif order.status == 'delivered' %}
+                                                <span class="badge badge-success">تم التسليم</span>
+                                            {% elif order.status == 'cancelled' %}
+                                                <span class="badge badge-danger">ملغي</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>طريقة الدفع:</th>
+                                        <td>{{ order.payment_method }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>حالة الدفع:</th>
+                                        <td>
+                                            {% if order.payment_status == 'paid' %}
+                                                <span class="badge badge-success">تم الدفع</span>
+                                            {% elif order.payment_status == 'pending' %}
+                                                <span class="badge badge-warning">قيد الانتظار</span>
+                                            {% elif order.payment_status == 'failed' %}
+                                                <span class="badge badge-danger">فشل الدفع</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>رقم المعاملة:</th>
+                                        <td>
+                                            {% if order.transaction_id %}
+                                                {{ order.transaction_id }}
+                                            {% else %}
+                                                <span class="text-muted">غير متوفر</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>ملاحظات الطلب:</th>
+                                        <td>
+                                            {% if order.notes %}
+                                                {{ order.notes }}
+                                            {% else %}
+                                                <span class="text-muted">لا توجد ملاحظات</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col">
+                        <div class="card">
+                            <div class="card-header">
+                                <h2>معلومات العميل</h2>
+                            </div>
+                            <div class="card-body">
+                                <table class="details-table">
+                                    <tr>
+                                        <th>الاسم:</th>
+                                        <td>{{ order.user.full_name }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>البريد الإلكتروني:</th>
+                                        <td>{{ order.user.email }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>رقم الهاتف:</th>
+                                        <td>{{ order.user.phone }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>تاريخ التسجيل:</th>
+                                        <td>{{ order.user.created_at.strftime('%Y-%m-%d') }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>عدد الطلبات:</th>
+                                        <td>{{ order.user.orders|length }}</td>
+                                    </tr>
+                                </table>
+                                <div class="user-actions">
+                                    <a href="{{ url_for('admin.show_user', user_id=order.user.id) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-user"></i> عرض ملف العميل
+                                    </a>
+                                    <a href="{{ url_for('admin.user_orders', user_id=order.user.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-shopping-bag"></i> عرض طلبات العميل
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h2>عنوان الشحن</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="shipping-address">
+                            <p><strong>{{ order.shipping_address.full_name }}</strong></p>
+                            <p>{{ order.shipping_address.address_line1 }}</p>
+                            {% if order.shipping_address.address_line2 %}
+                                <p>{{ order.shipping_address.address_line2 }}</p>
+                            {% endif %}
+                            <p>{{ order.shipping_address.city }}، {{ order.shipping_address.state }}</p>
+                            <p>{{ order.shipping_address.postal_code }}</p>
+                            <p>{{ order.shipping_address.country }}</p>
+                            <p>هاتف: {{ order.shipping_address.phone }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h2>منتجات الطلب</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>المنتج</th>
+                                        <th>السعر</th>
+                                        <th>الكمية</th>
+                                        <th>المجموع</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in order.items %}
+                                        <tr>
+                                            <td class="product-cell">
+                                                <div class="product-info">
+                                                    <div class="product-image">
+                                                        {% if item.product.images and item.product.images|length > 0 %}
+                                                            {% for image in item.product.images %}
+                                                                {% if image.is_primary %}
+                                                                    <img src="{{ image.image_path }}" alt="{{ item.product.name }}" class="product-thumbnail">
+                                                                    {% break %}
+                                                                {% endif %}
+                                                            {% else %}
+                                                                <img src="{{ item.product.images[0].image_path }}" alt="{{ item.product.name }}" class="product-thumbnail">
+                                                            {% endfor %}
+                                                        {% else %}
+                                                            <img src="{{ url_for('static', filename='img/placeholder.jpg') }}" alt="{{ item.product.name }}" class="product-thumbnail">
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="product-details">
+                                                        <h4>{{ item.product.name }}</h4>
+                                                        <p class="product-sku">SKU: {{ item.product.sku }}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{{ item.price }} ريال</td>
+                                            <td>{{ item.quantity }}</td>
+                                            <td>{{ item.price * item.quantity }} ريال</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th colspan="3">المجموع الفرعي:</th>
+                                        <td>{{ order.subtotal }} ريال</td>
+                                    </tr>
+                                    <tr>
+                                        <th colspan="3">رسوم الشحن:</th>
+                                        <td>{{ order.shipping_fee }} ريال</td>
+                                    </tr>
+                                    {% if order.discount_amount > 0 %}
+                                        <tr>
+                                            <th colspan="3">الخصم:</th>
+                                            <td>-{{ order.discount_amount }} ريال</td>
+                                        </tr>
+                                    {% endif %}
+                                    <tr>
+                                        <th colspan="3">ضريبة القيمة المضافة ({{ order.tax_rate }}%):</th>
+                                        <td>{{ order.tax_amount }} ريال</td>
+                                    </tr>
+                                    <tr class="total-row">
+                                        <th colspan="3">المجموع الكلي:</th>
+                                        <td>{{ order.total_amount }} ريال</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h2>سجل الطلب</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="order-history">
+                            <ul class="timeline">
+                                {% for history in order.history|sort(attribute='created_at', reverse=true) %}
+                                    <li class="timeline-item">
+                                        <div class="timeline-marker {% if history.status == 'cancelled' %}cancelled{% elif history.status == 'delivered' %}delivered{% endif %}"></div>
+                                        <div class="timeline-content">
+                                            <h3 class="timeline-title">
+                                                {% if history.status == 'pending' %}
+                                                    تم استلام الطلب
+                                                {% elif history.status == 'processing' %}
+                                                    قيد المعالجة
+                                                {% elif history.status == 'shipped' %}
+                                                    تم الشحن
+                                                {% elif history.status == 'delivered' %}
+                                                    تم التسليم
+                                                {% elif history.status == 'cancelled' %}
+                                                    تم إلغاء الطلب
+                                                {% endif %}
+                                            </h3>
+                                            <div class="timeline-info">
+                                                <span class="timeline-date">{{ history.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                                <span class="timeline-user">بواسطة: {{ history.user.username }}</span>
+                                            </div>
+                                            {% if history.notes %}
+                                                <p class="timeline-notes">{{ history.notes }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2025 متجر سوقي. جميع الحقوق محفوظة.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>طلباتي - متجر سوقي</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="navbar">
+                <div class="logo">
+                    <a href="{{ url_for('index') }}">سوقي</a>
+                </div>
+                <button class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="search-bar">
+                    <form action="{{ url_for('customer.search') }}" method="GET">
+                        <input type="text" name="q" placeholder="ابحث عن منتجات..." value="{{ request.args.get('q', '') }}">
+                        <button type="submit"><i class="fas fa-search"></i></button>
+                    </form>
+                </div>
+                <ul class="nav-links">
+                    <li><a href="{{ url_for('index') }}">الرئيسية</a></li>
+                    <li><a href="{{ url_for('customer.products') }}">المنتجات</a></li>
+                    <li><a href="{{ url_for('customer.categories') }}">الفئات</a></li>
+                    <li><a href="{{ url_for('customer.contact') }}">اتصل بنا</a></li>
+                </ul>
+                <div class="user-actions">
+                    <a href="{{ url_for('customer.cart') }}" class="cart-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                        {% if session.cart and session.cart|length > 0 %}
+                            <span class="cart-count">{{ session.cart|length }}</span>
+                        {% endif %}
+                    </a>
+                    {% if current_user.is_authenticated %}
+                        <div class="dropdown">
+                            <button class="dropdown-toggle">
+                                <i class="fas fa-user"></i>
+                                <span>{{ current_user.username }}</span>
+                            </button>
+                            <div class="dropdown-menu">
+                                <a href="{{ url_for('customer.account') }}">حسابي</a>
+                                <a href="{{ url_for('customer.orders') }}" class="active">طلباتي</a>
+                                <a href="{{ url_for('customer.wishlist') }}">المفضلة</a>
+                                <a href="{{ url_for('auth.logout') }}">تسجيل الخروج</a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="auth-buttons">
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-outline">تسجيل الدخول</a>
+                            <a href="{{ url_for('auth.register') }}" class="btn btn-primary">إنشاء حساب</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="breadcrumb">
+                <a href="{{ url_for('index') }}">الرئيسية</a>
+                <i class="fas fa-chevron-left"></i>
+                <a href="{{ url_for('customer.account') }}">حسابي</a>
+                <i class="fas fa-chevron-left"></i>
+                <span>طلباتي</span>
+            </div>
+
+            <div class="account-container">
+                <div class="account-sidebar">
+                    <div class="user-info">
+                        <div class="user-avatar">
+                            {% if current_user.avatar %}
+                                <img src="{{ current_user.avatar }}" alt="{{ current_user.username }}">
+                            {% else %}
+                                <div class="avatar-placeholder">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="user-details">
+                            <h3>{{ current_user.full_name }}</h3>
+                            <p>{{ current_user.email }}</p>
+                        </div>
+                    </div>
+                    <ul class="account-menu">
+                        <li><a href="{{ url_for('customer.account') }}"><i class="fas fa-user-circle"></i> لوحة التحكم</a></li>
+                        <li><a href="{{ url_for('customer.profile') }}"><i class="fas fa-user-edit"></i> تعديل الملف الشخصي</a></li>
+                        <li><a href="{{ url_for('customer.orders') }}" class="active"><i class="fas fa-shopping-bag"></i> طلباتي</a></li>
+                        <li><a href="{{ url_for('customer.addresses') }}"><i class="fas fa-map-marker-alt"></i> عناويني</a></li>
+                        <li><a href="{{ url_for('customer.wishlist') }}"><i class="fas fa-heart"></i> المفضلة</a></li>
+                        <li><a href="{{ url_for('customer.reviews') }}"><i class="fas fa-star"></i> تقييماتي</a></li>
+                        <li><a href="{{ url_for('customer.notifications') }}"><i class="fas fa-bell"></i> الإشعارات</a></li>
+                        <li><a href="{{ url_for('auth.change_password') }}"><i class="fas fa-lock"></i> تغيير كلمة المرور</a></li>
+                        <li><a href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</a></li>
+                    </ul>
+                </div>
+                
+                <div class="account-content">
+                    <h1 class="page-title">طلباتي</h1>
+                    
+                    <div class="orders-filter">
+                        <div class="filter-group">
+                            <label for="order-status">تصفية حسب الحالة:</label>
+                            <select id="order-status" class="form-control" onchange="filterOrders()">
+                                <option value="all" {% if not request.args.get('status') %}selected{% endif %}>جميع الطلبات</option>
+                                <option value="pending" {% if request.args.get('status') == 'pending' %}selected{% endif %}>قيد الانتظار</option>
+                                <option value="processing" {% if request.args.get('status') == 'processing' %}selected{% endif %}>قيد المعالجة</option>
+                                <option value="shipped" {% if request.args.get('status') == 'shipped' %}selected{% endif %}>تم الشحن</option>
+                                <option value="delivered" {% if request.args.get('status') == 'delivered' %}selected{% endif %}>تم التسليم</option>
+                                <option value="cancelled" {% if request.args.get('status') == 'cancelled' %}selected{% endif %}>ملغي</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group">
+                            <label for="order-date">تصفية حسب التاريخ:</label>
+                            <select id="order-date" class="form-control" onchange="filterOrders()">
+                                <option value="all" {% if not request.args.get('date') %}selected{% endif %}>جميع الفترات</option>
+                                <option value="last_month" {% if request.args.get('date') == 'last_month' %}selected{% endif %}>آخر شهر</option>
+                                <option value="last_3months" {% if request.args.get('date') == 'last_3months' %}selected{% endif %}>آخر 3 أشهر</option>
+                                <option value="last_6months" {% if request.args.get('date') == 'last_6months' %}selected{% endif %}>آخر 6 أشهر</option>
+                                <option value="last_year" {% if request.args.get('date') == 'last_year' %}selected{% endif %}>آخر سنة</option>
+                            </select>
+                        </div>
+                        
+                        <div class="filter-group search-group">
+                            <input type="text" id="order-search" class="form-control" placeholder="بحث برقم الطلب..." value="{{ request.args.get('q', '') }}">
+                            <button type="button" class="btn btn-primary" onclick="filterOrders()">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {% if orders %}
+                        <div class="orders-list">
+                            {% for order in orders %}
+                                <div class="order-card">
+                                    <div class="order-header">
+                                        <div class="order-info">
+                                            <h3>طلب #{{ order.order_number }}</h3>
+                                            <span class="order-date">{{ order.created_at.strftime('%d/%m/%Y') }}</span>
+                                        </div>
+                                        <div class="order-status status-{{ order.status }}">
+                                            {% if order.status == 'pending' %}
+                                                <span class="status-badge">قيد الانتظار</span>
+                                            {% elif order.status == 'processing' %}
+                                                <span class="status-badge">قيد المعالجة</span>
+                                            {% elif order.status == 'shipped' %}
+                                                <span class="status-badge">تم الشحن</span>
+                                            {% elif order.status == 'delivered' %}
+                                                <span class="status-badge">تم التسليم</span>
+                                            {% elif order.status == 'cancelled' %}
+                                                <span class="status-badge">ملغي</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="order-items">
+                                        {% for item in order.items[:3] %}
+                                            <div class="order-item">
+                                                <div class="item-image">
+                                                    {% if item.product.images and item.product.images|length > 0 %}
+                                                        {% for image in item.product.images %}
+                                                            {% if image.is_primary %}
+                                                                <img src="{{ image.image_path }}" alt="{{ item.product.name }}">
+                                                                {% break %}
+                                                            {% endif %}
+                                                        {% else %}
+                                                            <img src="{{ item.product.images[0].image_path }}" alt="{{ item.product.name }}">
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        <img src="{{ url_for('static', filename='img/placeholder.jpg') }}" alt="{{ item.product.name }}">
+                                                    {% endif %}
+                                                </div>
+                                                <div class="item-details">
+                                                    <h4>{{ item.product.name }}</h4>
+                                                    <div class="item-meta">
+                                                        <span class="item-price">{{ item.price }} ريال</span>
+                                                        <span class="item-quantity">الكمية: {{ item.quantity }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                        
+                                        {% if order.items|length > 3 %}
+                                            <div class="more-items">
+                                                <span>+ {{ order.items|length - 3 }} منتجات أخرى</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="order-footer">
+                                        <div class="order-total">
+                                            <span>المجموع:</span>
+                                            <span class="total-amount">{{ order.total_amount }} ريال</span>
+                                        </div>
+                                        <div class="order-actions">
+                                            <a href="{{ url_for('customer.order_details', order_id=order.id) }}" class="btn btn-outline">
+                                                <i class="fas fa-eye"></i> عرض التفاصيل
+                                            </a>
+                                            
+                                            {% if order.status == 'pending' %}
+                                                <button type="button" class="btn btn-danger" onclick="cancelOrder('{{ order.id }}')">
+                                                    <i class="fas fa-times"></i> إلغاء الطلب
+                                                </button>
+                                            {% elif order.status == 'delivered' and not order.is_reviewed %}
+                                                <a href="{{ url_for('customer.review_order', order_id=order.id) }}" class="btn btn-primary">
+                                                    <i class="fas fa-star"></i> تقييم المنتجات
+                                                </a>
+                                            {% endif %}
+                                            
+                                            {% if order.status == 'shipped' %}
+                                                <a href="{{ url_for('customer.track_order', order_id=order.id) }}" class="btn btn-primary">
+                                                    <i class="fas fa-truck"></i> تتبع الشحنة
+                                                </a>
+                                            {% endif %}
+                                            
+                                            {% if order.status == 'delivered' %}
+                                                <button type="button" class="btn btn-primary" onclick="reorder('{{ order.id }}')">
+                                                    <i class="fas fa-redo"></i> إعادة الطلب
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if pagination.pages > 1 %}
+                            <div class="pagination">
+                                {% if pagination.has_prev %}
+                                    <a href="{{ url_for('customer.orders', page=pagination.prev_num, status=request.args.get('status'), date=request.args.get('date'), q=request.args.get('q')) }}" class="pagination-item">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                {% endif %}
+                                
+                                {% for page in pagination.iter_pages() %}
+                                    {% if page %}
+                                        <a href="{{ url_for('customer.orders', page=page, status=request.args.get('status'), date=request.args.get('date'), q=request.args.get('q')) }}" class="pagination-item {% if page == pagination.page %}active{% endif %}">
+                                            {{ page }}
+                                        </a>
+                                    {% else %}
+                                        <span class="pagination-item dots">...</span>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if pagination.has_next %}
+                                    <a href="{{ url_for('customer.orders', page=pagination.next_num, status=request.args.get('status'), date=request.args.get('date'), q=request.args.get('q')) }}" class="pagination-item">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-shopping-bag"></i>
+                            </div>
+                            <h2>لا توجد طلبات</h2>
+                            <p>لم تقم بإجراء أي طلبات بعد.</p>
+                            <a href="{{ url_for('customer.products') }}" class="btn btn-primary">
+                                <i class="fas fa-shopping-bag"></i> تسوق الآن
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-top">
+                <div class="footer-column">
+                    <h3>سوقي</h3>
+                    <p>متجرك الإلكتروني الموثوق للتسوق بكل سهولة وأمان.</p>
+                    <div class="social-links">
+                        <a href="#" class="social-link"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+                <div class="footer-column">
+                    <h3>روابط سريعة</h3>
+                    <ul class="footer-links">
+                        <li><a href="{{ url_for('index') }}">الرئيسية</a></li>
+                        <li><a href="{{ url_for('customer.products') }}">المنتجات</a></li>
+                        <li><a href="{{ url_for('customer.categories') }}">الفئات</a></li>
+                        <li><a href="{{ url_for('customer.offers') }}">العروض</a></li>
+                        <li><a href="{{ url_for('customer.contact') }}">اتصل بنا</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>خدمة العملاء</h3>
+                    <ul class="footer-links">
+                        <li><a href="{{ url_for('customer.account') }}">حسابي</a></li>
+                        <li><a href="{{ url_for('customer.orders') }}">تتبع الطلبات</a></li>
+                        <li><a href="{{ url_for('customer.shipping_policy') }}">سياسة الشحن</a></li>
+                        <li><a href="{{ url_for('customer.return_policy') }}">سياسة الإرجاع</a></li>
+                        <li><a href="{{ url_for('customer.faq') }}">الأسئلة الشائعة</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>اتصل بنا</h3>
+                    <ul class="contact-info">
+                        <li><i class="fas fa-map-marker-alt"></i> الرياض، المملكة العربية السعودية</li>
+                        <li><i class="fas fa-phone"></i> +966 12 345 6789</li>
+                        <li><i class="fas fa-envelope"></i> info@sooqi.com</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 متجر سوقي. جميع الحقوق محفوظة.</p>
+                <div class="payment-methods">
+                    <img src="{{ url_for('static', filename='img/payment-methods.png') }}" alt="طرق الدفع">
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        // تصفية الطلبات
+        function filterOrders() {
+            const status = document.getElementById('order-status').value;
+            const date = document.getElementById('order-date').value;
+            const search = document.getElementById('order-search').value.trim();
+            
+            let url = '{{ url_for("customer.orders") }}?';
+            
+            if (status !== 'all') {
+                url += `status=${status}&`;
+            }
+            
+            if (date !== 'all') {
+                url += `date=${date}&`;
+            }
+            
+            if (search) {
+                url += `q=${encodeURIComponent(search)}&`;
+            }
+            
+            // إزالة الـ & الأخير إذا وجد
+            if (url.endsWith('&')) {
+                url = url.slice(0, -1);
+            }
+            
+            window.location.href = url;
+        }
+        
+        // إلغاء الطلب
+        function cancelOrder(orderId) {
+            if (confirm('هل أنت متأكد من إلغاء هذا الطلب؟')) {
+                fetch(`/customer/orders/${orderId}/cancel`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('تم إلغاء الطلب بنجاح');
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'حدث خطأ أثناء إلغاء الطلب');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('حدث خطأ أثناء إلغاء الطلب');
+                });
+            }
+        }
+        
+        // إعادة الطلب
+        function reorder(orderId) {
+            fetch(`/customer/orders/${orderId}/reorder`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('تمت إضافة المنتجات إلى السلة بنجاح');
+                    window.location.href = '{{ url_for("customer.cart") }}';
+                } else {
+                    alert(data.message || 'حدث خطأ أثناء إعادة الطلب');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ أثناء إعادة الطلب');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تفاصيل المنتج - متجر سوقي</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="navbar">
+                <div class="logo">
+                    <a href="{{ url_for('index') }}">سوقي</a>
+                </div>
+                <button class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="search-bar">
+                    <form action="{{ url_for('customer.search') }}" method="GET">
+                        <input type="text" name="q" placeholder="ابحث عن منتجات..." value="{{ request.args.get('q', '') }}">
+                        <button type="submit"><i class="fas fa-search"></i></button>
+                    </form>
+                </div>
+                <ul class="nav-links">
+                    <li><a href="{{ url_for('index') }}">الرئيسية</a></li>
+                    <li><a href="{{ url_for('customer.products') }}">المنتجات</a></li>
+                    <li><a href="{{ url_for('customer.categories') }}">الفئات</a></li>
+                    <li><a href="{{ url_for('customer.contact') }}">اتصل بنا</a></li>
+                </ul>
+                <div class="user-actions">
+                    <a href="{{ url_for('customer.cart') }}" class="cart-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                        {% if session.cart and session.cart|length > 0 %}
+                            <span class="cart-count">{{ session.cart|length }}</span>
+                        {% endif %}
+                    </a>
+                    {% if current_user.is_authenticated %}
+                        <div class="dropdown">
+                            <button class="dropdown-toggle">
+                                <i class="fas fa-user"></i>
+                                <span>{{ current_user.username }}</span>
+                            </button>
+                            <div class="dropdown-menu">
+                                <a href="{{ url_for('customer.account') }}">حسابي</a>
+                                <a href="{{ url_for('customer.orders') }}">طلباتي</a>
+                                <a href="{{ url_for('customer.wishlist') }}">المفضلة</a>
+                                <a href="{{ url_for('auth.logout') }}">تسجيل الخروج</a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="auth-buttons">
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-outline">تسجيل الدخول</a>
+                            <a href="{{ url_for('auth.register') }}" class="btn btn-primary">إنشاء حساب</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="breadcrumb">
+                <a href="{{ url_for('index') }}">الرئيسية</a>
+                <i class="fas fa-chevron-left"></i>
+                <a href="{{ url_for('customer.products') }}">المنتجات</a>
+                <i class="fas fa-chevron-left"></i>
+                <a href="{{ url_for('customer.category_products', category_id=product.category.id) }}">{{ product.category.name }}</a>
+                <i class="fas fa-chevron-left"></i>
+                <span>{{ product.name }}</span>
+            </div>
+
+            <div class="product-details">
+                <div class="product-gallery">
+                    <div class="main-image">
+                        {% if product.images and product.images|length > 0 %}
+                            {% for image in product.images %}
+                                {% if image.is_primary %}
+                                    <img src="{{ image.image_path }}" alt="{{ product.name }}" id="main-product-image">
+                                    {% break %}
+                                {% endif %}
+                            {% else %}
+                                <img src="{{ product.images[0].image_path }}" alt="{{ product.name }}" id="main-product-image">
+                            {% endfor %}
+                        {% else %}
+                            <img src="{{ url_for('static', filename='img/placeholder.jpg') }}" alt="{{ product.name }}" id="main-product-image">
+                        {% endif %}
+                    </div>
+                    {% if product.images and product.images|length > 1 %}
+                        <div class="thumbnails">
+                            {% for image in product.images %}
+                                <div class="thumbnail {% if loop.first %}active{% endif %}" onclick="changeMainImage('{{ image.image_path }}')">
+                                    <img src="{{ image.image_path }}" alt="{{ product.name }} - صورة {{ loop.index }}">
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="product-info">
+                    <h1 class="product-title">{{ product.name }}</h1>
+                    
+                    <div class="product-meta">
+                        <div class="product-rating">
+                            <div class="stars">
+                                {% set avg_rating = product.average_rating or 0 %}
+                                {% for i in range(5) %}
+                                    {% if i < avg_rating|int %}
+                                        <i class="fas fa-star"></i>
+                                    {% elif i < avg_rating %}
+                                        <i class="fas fa-star-half-alt"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <span class="rating-count">{{ product.reviews|length }} تقييم</span>
+                        </div>
+                        <div class="product-sku">
+                            <span>رمز المنتج: {{ product.sku }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="product-price">
+                        {% if product.discount_price and product.discount_price < product.price %}
+                            <div class="price-current">{{ product.discount_price }} ريال</div>
+                            <div class="price-old">{{ product.price }} ريال</div>
+                            <div class="discount-badge">
+                                خصم {{ ((product.price - product.discount_price) / product.price * 100)|int }}%
+                            </div>
+                        {% else %}
+                            <div class="price-current">{{ product.price }} ريال</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="product-availability">
+                        {% if product.stock_quantity > 0 %}
+                            <span class="in-stock"><i class="fas fa-check-circle"></i> متوفر في المخزون</span>
+                            <span class="stock-qty">({{ product.stock_quantity }} قطعة متبقية)</span>
+                        {% else %}
+                            <span class="out-of-stock"><i class="fas fa-times-circle"></i> غير متوفر حالياً</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="product-description">
+                        <h3>وصف المنتج</h3>
+                        <div class="description-content">
+                            {{ product.description|safe }}
+                        </div>
+                    </div>
+                    
+                    {% if product.stock_quantity > 0 %}
+                        <form action="{{ url_for('customer.add_to_cart', product_id=product.id) }}" method="POST" class="add-to-cart-form">
+                            <div class="quantity-selector">
+                                <label for="quantity">الكمية:</label>
+                                <div class="quantity-controls">
+                                    <button type="button" class="quantity-decrease" onclick="decreaseQuantity()">-</button>
+                                    <input type="number" id="quantity" name="quantity" value="1" min="1" max="{{ product.stock_quantity }}">
+                                    <button type="button" class="quantity-increase" onclick="increaseQuantity({{ product.stock_quantity }})">+</button>
+                                </div>
+                            </div>
+                            
+                            <div class="product-actions">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-shopping-cart"></i> أضف إلى السلة
+                                </button>
+                                <button type="button" class="btn btn-outline btn-lg" onclick="addToWishlist({{ product.id }})">
+                                    <i class="far fa-heart"></i> أضف للمفضلة
+                                </button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <div class="notify-availability">
+                            <p>هذا المنتج غير متوفر حالياً. يمكنك تسجيل اهتمامك لإشعارك عند توفره.</p>
+                            <form action="{{ url_for('customer.notify_availability', product_id=product.id) }}" method="POST">
+                                <div class="form-group">
+                                    <input type="email" name="email" placeholder="أدخل بريدك الإلكتروني" class="form-control" required>
+                                    <button type="submit" class="btn btn-primary">أشعرني عند التوفر</button>
+                                </div>
+                            </form>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="product-features">
+                        <div class="feature">
+                            <i class="fas fa-truck"></i>
+                            <span>شحن سريع لجميع المدن</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-undo"></i>
+                            <span>استرجاع مجاني خلال 14 يوم</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>ضمان جودة المنتج</span>
+                        </div>
+                        <div class="feature">
+                            <i class="fas fa-credit-card"></i>
+                            <span>دفع آمن</span>
+                        </div>
+                    </div>
+                    
+                    <div class="product-share">
+                        <span>مشاركة:</span>
+                        <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.url|urlencode }}" target="_blank" class="social-icon">
+                            <i class="fab fa-facebook-f"></i>
+                        </a>
+                        <a href="https://twitter.com/intent/tweet?url={{ request.url|urlencode }}&text={{ product.name|urlencode }}" target="_blank" class="social-icon">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        <a href="https://wa.me/?text={{ (product.name + ' - ' + request.url)|urlencode }}" target="_blank" class="social-icon">
+                            <i class="fab fa-whatsapp"></i>
+                        </a>
+                        <a href="mailto:?subject={{ product.name|urlencode }}&body={{ request.url|urlencode }}" class="social-icon">
+                            <i class="fas fa-envelope"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="product-tabs">
+                <div class="tabs-header">
+                    <button class="tab-btn active" data-tab="specifications">المواصفات</button>
+                    <button class="tab-btn" data-tab="reviews">التقييمات ({{ product.reviews|length }})</button>
+                    <button class="tab-btn" data-tab="shipping">الشحن والإرجاع</button>
+                </div>
+                
+                <div class="tabs-content">
+                    <div class="tab-pane active" id="specifications">
+                        {% if product.specifications %}
+                            <table class="specifications-table">
+                                {% for spec in product.specifications %}
+                                    <tr>
+                                        <th>{{ spec.name }}</th>
+                                        <td>{{ spec.value }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </table>
+                        {% else %}
+                            <p class="no-data">لا توجد مواصفات متاحة لهذا المنتج.</p>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="tab-pane" id="reviews">
+                        <div class="reviews-summary">
+                            <div class="rating-average">
+                                <div class="average-number">{{ product.average_rating|round(1) }}</div>
+                                <div class="average-stars">
+                                    {% set avg_rating = product.average_rating or 0 %}
+                                    {% for i in range(5) %}
+                                        {% if i < avg_rating|int %}
+                                            <i class="fas fa-star"></i>
+                                        {% elif i < avg_rating %}
+                                            <i class="fas fa-star-half-alt"></i>
+                                        {% else %}
+                                            <i class="far fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <div class="rating-count">{{ product.reviews|length }} تقييم</div>
+                            </div>
+                            
+                            <div class="rating-bars">
+                                {% for i in range(5, 0, -1) %}
+                                    <div class="rating-bar">
+                                        <div class="rating-label">{{ i }} نجوم</div>
+                                        <div class="progress">
+                                            {% set count = product.reviews|selectattr('rating', 'eq', i)|list|length %}
+                                            {% set percentage = (count / product.reviews|length * 100) if product.reviews|length > 0 else 0 %}
+                                            <div class="progress-bar" style="width: {{ percentage }}%"></div>
+                                        </div>
+                                        <div class="rating-count">{{ count }}</div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="reviews-list">
+                            {% if product.reviews %}
+                                {% for review in product.reviews %}
+                                    {% if review.is_approved %}
+                                        <div class="review-item">
+                                            <div class="review-header">
+                                                <div class="reviewer-info">
+                                                    <div class="reviewer-avatar">
+                                                        {% if review.user.avatar %}
+                                                            <img src="{{ review.user.avatar }}" alt="{{ review.user.username }}">
+                                                        {% else %}
+                                                            <img src="{{ url_for('static', filename='img/user-placeholder.png') }}" alt="{{ review.user.username }}">
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="reviewer-name">{{ review.user.username }}</div>
+                                                </div>
+                                                <div class="review-rating">
+                                                    {% for i in range(5) %}
+                                                        {% if i < review.rating %}
+                                                            <i class="fas fa-star"></i>
+                                                        {% else %}
+                                                            <i class="far fa-star"></i>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                                <div class="review-date">{{ review.created_at.strftime('%Y-%m-%d') }}</div>
+                                            </div>
+                                            <div class="review-content">
+                                                {{ review.comment }}
+                                            </div>
+                                            {% if review.images %}
+                                                <div class="review-images">
+                                                    {% for image in review.images %}
+                                                        <div class="review-image">
+                                                            <img src="{{ image.image_path }}" alt="صورة التقييم {{ loop.index }}">
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <div class="no-reviews">
+                                    <p>لا توجد تقييمات لهذا المنتج حتى الآن.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if current_user.is_authenticated %}
+                            <div class="add-review">
+                                <h3>أضف تقييمك</h3>
+                                <form action="{{ url_for('customer.add_review', product_id=product.id) }}" method="POST" enctype="multipart/form-data">
+                                    <div class="form-group">
+                                        <label for="rating" class="form-label">التقييم</label>
+                                        <div class="rating-selector">
+                                            <div class="stars">
+                                                {% for i in range(5) %}
+                                                    <input type="radio" name="rating" id="star{{ 5-i }}" value="{{ 5-i }}" {% if loop.first %}required{% endif %}>
+                                                    <label for="star{{ 5-i }}"><i class="far fa-star"></i></label>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="comment" class="form-label">تعليقك</label>
+                                        <textarea id="comment" name="comment" class="form-control" rows="4" required></textarea>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label class="form-label">إضافة صور (اختياري)</label>
+                                        <div class="review-image-upload">
+                                            <input type="file" id="review_images" name="review_images" class="file-input" accept="image/*" multiple>
+                                            <label for="review_images" class="upload-label">
+                                                <i class="fas fa-cloud-upload-alt"></i>
+                                                <span>اختر صور</span>
+                                            </label>
+                                            <div class="helper-text">يمكنك إضافة حتى 3 صور. الصيغ المدعومة: JPG, PNG, WEBP.</div>
+                                        </div>
+                                        <div class="image-preview-container" id="review-image-preview">
+                                            <!-- ستظهر هنا معاينة الصور المختارة -->
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-actions">
+                                        <button type="submit" class="btn btn-primary">إرسال التقييم</button>
+                                    </div>
+                                </form>
+                            </div>
+                        {% else %}
+                            <div class="login-to-review">
+                                <p>يرجى <a href="{{ url_for('auth.login', next=request.path) }}">تسجيل الدخول</a> لإضافة تقييم.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="tab-pane" id="shipping">
+                        <div class="shipping-info">
+                            <h3>معلومات الشحن</h3>
+                            <p>نوفر خدمة الشحن لجميع مناطق المملكة العربية السعودية.</p>
+                            <ul>
+                                <li>الشحن المجاني للطلبات التي تزيد قيمتها عن 200 ريال.</li>
+                                <li>رسوم الشحن العادي: 20 ريال (3-5 أيام عمل).</li>
+                                <li>رسوم الشحن السريع: 40 ريال (1-2 يوم عمل).</li>
+                                <li>يتم شحن الطلبات خلال 24 ساعة من تأكيد الطلب.</li>
+                            </ul>
+                            
+                            <h3>سياسة الإرجاع</h3>
+                            <p>نقدم سياسة إرجاع مرنة لضمان رضاك التام:</p>
+                            <ul>
+                                <li>يمكنك إرجاع المنتج خلال 14 يوماً من تاريخ الاستلام.</li>
+                                <li>يجب أن يكون المنتج في حالته الأصلية وغير مستخدم.</li>
+                                <li>يجب الاحتفاظ بجميع مرفقات المنتج والعبوة الأصلية.</li>
+                                <li>سيتم استرداد المبلغ كاملاً (باستثناء رسوم الشحن) خلال 7 أيام عمل.</li>
+                            </ul>
+                            
+                            <p>لمزيد من المعلومات حول سياسات الشحن والإرجاع، يرجى <a href="{{ url_for('customer.shipping_policy') }}">الضغط هنا</a>.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if related_products %}
+                <div class="related-products">
+                    <h2 class="section-title">منتجات ذات صلة</h2>
+                    <div class="products-grid">
+                        {% for related in related_products %}
+                            <div class="product-card">
+                                <div class="product-image">
+                                    <a href="{{ url_for('customer.product_details', product_id=related.id) }}">
+                                        {% if related.images and related.images|length > 0 %}
+                                            {% for image in related.images %}
+                                                {% if image.is_primary %}
+                                                    <img src="{{ image.image_path }}" alt="{{ related.name }}">
+                                                    {% break %}
+                                                {% endif %}
+                                            {% else %}
+                                                <img src="{{ related.images[0].image_path }}" alt="{{ related.name }}">
+                                            {% endfor %}
+                                        {% else %}
+                                            <img src="{{ url_for('static', filename='img/placeholder.jpg') }}" alt="{{ related.name }}">
+                                        {% endif %}
+                                    </a>
+                                    <div class="product-actions">
+                                        <button class="action-btn" onclick="addToCart({{ related.id }}, 1)" title="أضف إلى السلة">
+                                            <i class="fas fa-shopping-cart"></i>
+                                        </button>
+                                        <button class="action-btn" onclick="addToWishlist({{ related.id }})" title="أضف للمفضلة">
+                                            <i class="far fa-heart"></i>
+                                        </button>
+                                        <button class="action-btn" onclick="quickView({{ related.id }})" title="نظرة سريعة">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="product-info">
+                                    <h3 class="product-title">
+                                        <a href="{{ url_for('customer.product_details', product_id=related.id) }}">{{ related.name }}</a>
+                                    </h3>
+                                    <div class="product-price">
+                                        {% if related.discount_price and related.discount_price < related.price %}
+                                            <span class="price-current">{{ related.discount_price }} ريال</span>
+                                            <span class="price-old">{{ related.price }} ريال</span>
+                                        {% else %}
+                                            <span class="price-current">{{ related.price }} ريال</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="product-rating">
+                                        {% set avg_rating = related.average_rating or 0 %}
+                                        {% for i in range(5) %}
+                                            {% if i < avg_rating|int %}
+                                                <i class="fas fa-star"></i>
+                                            {% elif i < avg_rating %}
+                                                <i class="fas fa-star-half-alt"></i>
+                                            {% else %}
+                                                <i class="far fa-star"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                        <span>({{ related.reviews|length }})</span>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <div class="footer-top">
+                <div class="footer-column">
+                    <h3>سوقي</h3>
+                    <p>متجرك الإلكتروني الموثوق للتسوق بكل سهولة وأمان.</p>
+                    <div class="social-links">
+                        <a href="#" class="social-link"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+                <div class="footer-column">
+                    <h3>روابط سريعة</h3>
+                    <ul class="footer-links">
+                        <li><a href="{{ url_for('index') }}">الرئيسية</a></li>
+                        <li><a href="{{ url_for('customer.products') }}">المنتجات</a></li>
+                        <li><a href="{{ url_for('customer.categories') }}">الفئات</a></li>
+                        <li><a href="{{ url_for('customer.offers') }}">العروض</a></li>
+                        <li><a href="{{ url_for('customer.contact') }}">اتصل بنا</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>خدمة العملاء</h3>
+                    <ul class="footer-links">
+                        <li><a href="{{ url_for('customer.account') }}">حسابي</a></li>
+                        <li><a href="{{ url_for('customer.orders') }}">تتبع الطلبات</a></li>
+                        <li><a href="{{ url_for('customer.shipping_policy') }}">سياسة الشحن</a></li>
+                        <li><a href="{{ url_for('customer.return_policy') }}">سياسة الإرجاع</a></li>
+                        <li><a href="{{ url_for('customer.faq') }}">الأسئلة الشائعة</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>اتصل بنا</h3>
+                    <ul class="contact-info">
+                        <li><i class="fas fa-map-marker-alt"></i> الرياض، المملكة العربية السعودية</li>
+                        <li><i class="fas fa-phone"></i> +966 12 345 6789</li>
+                        <li><i class="fas fa-envelope"></i> info@sooqi.com</li>
+                    </ul>
+                    <div class="newsletter">
+                        <h4>اشترك في النشرة البريدية</h4>
+                        <form action="{{ url_for('customer.subscribe_newsletter') }}" method="POST">
+                            <input type="email" name="email" placeholder="بريدك الإلكتروني" required>
+                            <button type="submit"><i class="fas fa-paper-plane"></i></button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 متجر سوقي. جميع الحقوق محفوظة.</p>
+                <div class="payment-methods">
+                    <img src="{{ url_for('static', filename='img/payment-methods.png') }}" alt="طرق الدفع">
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        // تغيير الصورة الرئيسية
+        function changeMainImage(imagePath) {
+            document.getElementById('main-product-image').src = imagePath;
+            
+            // تحديث الصورة المصغرة النشطة
+            const thumbnails = document.querySelectorAll('.thumbnail');
+            thumbnails.forEach(thumbnail => {
+                thumbnail.classList.remove('active');
+                if (thumbnail.querySelector('img').src === imagePath) {
+                    thumbnail.classList.add('active');
+                }
+            });
+        }
+        
+        // زيادة الكمية
+        function increaseQuantity(maxStock) {
+            const quantityInput = document.getElementById('quantity');
+            const currentValue = parseInt(quantityInput.value);
+            if (currentValue < maxStock) {
+                quantityInput.value = currentValue + 1;
+            }
+        }
+        
+        // إنقاص الكمية
+        function decreaseQuantity() {
+            const quantityInput = document.getElementById('quantity');
+            const currentValue = parseInt(quantityInput.value);
+            if (currentValue > 1) {
+                quantityInput.value = currentValue - 1;
+            }
+        }
+        
+        // إضافة للمفضلة
+        function addToWishlist(productId) {
+            fetch(`/customer/wishlist/add/${productId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('تمت إضافة المنتج إلى المفضلة بنجاح');
+                } else if (data.error === 'login_required') {
+                    window.location.href = '/auth/login?next=' + window.location.pathname;
+                } else {
+                    alert(data.message || 'حدث خطأ أثناء إضافة المنتج إلى المفضلة');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ أثناء إضافة المنتج إلى المفضلة');
+            });
+        }
+        
+        // إضافة إلى السلة
+        function addToCart(productId, quantity) {
+            fetch(`/customer/cart/add/${productId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ quantity: quantity })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('تمت إضافة المنتج إلى السلة بنجاح');
+                    // تحديث عدد العناصر في السلة
+                    const cartCount = document.querySelector('.cart-count');
+                    if (cartCount) {
+                        cartCount.textContent = data.cart_count;
+                        cartCount.style.display = data.cart_count > 0 ? 'flex' : 'none';
+                    }
+                } else {
+                    alert(data.message || 'حدث خطأ أثناء إضافة المنتج إلى السلة');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ أثناء إضافة المنتج إلى السلة');
+            });
+        }
+        
+        // عرض سريع للمنتج
+        function quickView(productId) {
+            fetch(`/customer/products/${productId}/quick-view`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // إنشاء وعرض نافذة العرض السريع
+                    const modal = document.createElement('div');
+                    modal.className = 'quick-view-modal';
+                    modal.innerHTML = data.html;
+                    document.body.appendChild(modal);
+                    
+                    // إضافة حدث لإغلاق النافذة
+                    modal.querySelector('.close-modal').addEventListener('click', function() {
+                        document.body.removeChild(modal);
+                    });
+                    
+                    // إغلاق النافذة عند النقر خارجها
+                    modal.addEventListener('click', function(event) {
+                        if (event.target === modal) {
+                            document.body.removeChild(modal);
+                        }
+                    });
+                } else {
+                    alert('حدث خطأ أثناء تحميل بيانات المنتج');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ أثناء تحميل بيانات المنتج');
+            });
+        }
+        
+        // تبديل علامات التبويب
+        document.querySelectorAll('.tab-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                // إزالة الفئة النشطة من جميع الأزرار
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                // إضافة الفئة النشطة للزر المنقور
+                this.classList.add('active');
+                
+                // إخفاء جميع محتويات التبويب
+                document.querySelectorAll('.tab-pane').forEach(pane => {
+                    pane.classList.remove('active');
+                });
+                
+                // إظهار محتوى التبويب المطلوب
+                const tabId = this.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+        
+        // معاينة صور التقييم
+        document.getElementById('review_images').addEventListener('change', function(event) {
+            const previewContainer = document.getElementById('review-image-preview');
+            previewContainer.innerHTML = '';
+            
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+            
+            // التحقق من عدد الملفات
+            if (files.length > 3) {
+                alert('يمكنك إضافة 3 صور كحد أقصى');
+                event.target.value = '';
+                return;
+            }
+            
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                
+                // التحقق من نوع الملف
+                if (!allowedTypes.includes(file.type)) {
+                    alert(`الملف ${file.name} ليس بصيغة صورة مدعومة. الصيغ المدعومة: JPG, PNG, WEBP.`);
+                    continue;
+                }
+                
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'preview-item';
+                    
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.alt = 'معاينة صورة التقييم';
+                    
+                    previewItem.appendChild(img);
+                    previewContainer.appendChild(previewItem);
+                };
+                
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // تفعيل نظام تقييم النجوم
+        document.querySelectorAll('.rating-selector .stars label').forEach(label => {
+            label.addEventListener('mouseover', function() {
+                const starValue = this.getAttribute('for').replace('star', '');
+                
+                // إضافة الفئة النشطة للنجوم حتى النجمة الحالية
+                document.querySelectorAll('.rating-selector .stars label').forEach(star => {
+                    const thisStarValue = star.getAttribute('for').replace('star', '');
+                    if (thisStarValue <= starValue) {
+                        star.querySelector('i').className = 'fas fa-star';
+                    } else {
+                        star.querySelector('i').className = 'far fa-star';
+                    }
+                });
+            });
+        });
+        
+        // إعادة تعيين النجوم عند إزالة المؤشر
+        document.querySelector('.rating-selector .stars').addEventListener('mouseleave', function() {
+            const checkedInput = document.querySelector('.rating-selector input:checked');
+            if (checkedInput) {
+                const checkedValue = checkedInput.value;
+                
+                document.querySelectorAll('.rating-selector .stars label').forEach(star => {
+                    const thisStarValue = star.getAttribute('for').replace('star', '');
+                    if (thisStarValue <= checkedValue) {
+                        star.querySelector('i').className = 'fas fa-star';
+                    } else {
+                        star.querySelector('i').className = 'far fa-star';
+                    }
+                });
+            } else {
+                document.querySelectorAll('.rating-selector .stars label i').forEach(star => {
+                    star.className = 'far fa-star';
+                });
+            }
+        });
+        
+        // تحديث النجوم عند النقر
+        document.querySelectorAll('.rating-selector input').forEach(input => {
+            input.addEventListener('change', function() {
+                const value = this.value;
+                
+                document.querySelectorAll('.rating-selector .stars label').forEach(star => {
+                    const thisStarValue = star.getAttribute('for').replace('star', '');
+                    if (thisStarValue <= value) {
+                        star.querySelector('i').className = 'fas fa-star';
+                    } else {
+                        star.querySelector('i').className = 'far fa-star';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
